@@ -1,14 +1,39 @@
-# How to import an excel file into Flutter DataTable (SfDataGrid)?
+import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_datagrid/datagrid.dart';
+import 'package:excel/excel.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:typed_data';
+import 'dart:io';
 
-In this article, we will show you how to import an excel file into [Flutter DataTable](https://www.syncfusion.com/flutter-widgets/flutter-datagrid).
+void main() {
+  runApp(const MyApp());
+}
 
-## Steps to Import an Excel File into Flutter DataTable
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-### Step 1: Extracting Data from Excel
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Syncfusion DataGrid Demo',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const HomePage(),
+    );
+  }
+}
 
-The file picker should allow the selection of .xlsx files. Once an Excel file is selected, decode it using the `Excel.decodeBytes` method from the excel package. Extract the headers from the first row and the data starting from the second row. Dynamically generate columns by iterating over the headers and creating a [GridColumn](https://pub.dev/documentation/syncfusion_flutter_datagrid/latest/datagrid/GridColumn-class.html) for each one.
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
-```dart
+  @override
+  // ignore: library_private_types_in_public_api
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  List<dynamic> importedData = [];
+  List<GridColumn> columns = [];
+
   // Handle Excel file import and load data into the DataGrid.
   Future<void> importDataGridFromExcel() async {
     clearData();
@@ -90,13 +115,35 @@ The file picker should allow the selection of .xlsx files. Once an Excel file is
 
     return columns;
   }
-```
 
-### Step 2: Displaying Data in SfDataGrid
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Import Excel Data'),
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: importDataGridFromExcel,
+          child: const Text('Import from Excel'),
+        ),
+      ),
+    );
+  }
+}
 
-Display a CircularProgressIndicator while the data is loading. Once the data is loaded, pass the prepared DataGridSource to the [SfDataGrid]() widget to render the grid.
+class DataGridPage extends StatefulWidget {
+  final List<dynamic> importedData;
+  final List<GridColumn> columns;
 
-```dart
+  const DataGridPage(
+      {required this.importedData, required this.columns, super.key});
+
+  @override
+  DataGridPageState createState() => DataGridPageState();
+}
+
+class DataGridPageState extends State<DataGridPage> {
   late ExcelDataGridSource excelDataGridSource;
   bool isLoading = true;
 
@@ -133,6 +180,47 @@ Display a CircularProgressIndicator while the data is loading. Once the data is 
             ),
     );
   }
-```
+}
 
-You can download this example on [GitHub](https://github.com/SyncfusionExamples/How-to-import-an-excel-file-into-Flutter-DataTable).
+class ExcelDataGridSource extends DataGridSource {
+  ExcelDataGridSource(List<dynamic> employeeList, List<GridColumn> columns) {
+    dataGridRows = employeeList.map<DataGridRow>((employee) {
+      return DataGridRow(
+        cells: columns.map<DataGridCell>((column) {
+          var value = employee[column.columnName];
+          // Handle different types of data (int, double, DateTime, String).
+          if (value is IntCellValue) {
+            return DataGridCell<int>(
+                columnName: column.columnName, value: value.value);
+          } else if (value is DoubleCellValue) {
+            return DataGridCell<double>(
+                columnName: column.columnName, value: value.value);
+          } else if (value is DateCellValue) {
+            return DataGridCell<DateTime>(
+                columnName: column.columnName,
+                value: DateTime(value.year, value.month, value.day));
+          } else {
+            return DataGridCell<String>(
+                columnName: column.columnName, value: value.toString());
+          }
+        }).toList(),
+      );
+    }).toList();
+  }
+
+  List<DataGridRow> dataGridRows = [];
+
+  @override
+  List<DataGridRow> get rows => dataGridRows;
+
+  @override
+  DataGridRowAdapter? buildRow(DataGridRow row) {
+    return DataGridRowAdapter(
+        cells: row.getCells().map<Widget>((dataGridCell) {
+      return Container(
+          padding: const EdgeInsets.all(8),
+          alignment: Alignment.center,
+          child: Text(dataGridCell.value.toString()));
+    }).toList());
+  }
+}
